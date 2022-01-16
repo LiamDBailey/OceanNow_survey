@@ -65,7 +65,7 @@ dictionary <- data.frame(name = c("Have you seen the exhibition?", "Haben Sie di
 
 # BERLIN DATA ####
 
-(berlin_data <- readr::read_delim(here::here("./data/Ocean._Now_Berlin_-_all_versions_-_labels_-_2021-11-02-15-19-29.csv"), delim = ";",
+(berlin_data <- readr::read_delim(here::here("I:/pwind/Nextcloud/Datascience/OceanNow_data/Ocean._Now_Berlin_-_all_versions_-_labels_-_2021-11-02-15-19-29.csv"), delim = ";",
                                   col_types = list(
                                     start = col_datetime(),
                                     end = col_datetime(),
@@ -117,7 +117,7 @@ dictionary <- data.frame(name = c("Have you seen the exhibition?", "Haben Sie di
 #These end up with different column titles because the names changed a bit over time (STUPID!)
 #We can overcome this by unchecking 'include fields from all X deployed version'
 
-(kiel_data <- readr::read_delim(here::here("./data/Ocean._Now_Kiel_-_latest_version_-_labels_-_2021-11-17-17-50-39.csv"), delim = ";",
+(kiel_data <- readr::read_delim(here::here("I:/pwind/Nextcloud/Datascience/OceanNow_data/Ocean._Now_Kiel_-_latest_version_-_labels_-_2021-11-17-17-50-39.csv"), delim = ";",
                                   col_types = list(
                                     start = col_datetime(),
                                     end = col_datetime(),
@@ -171,4 +171,4 @@ dictionary <- data.frame(name = c("Have you seen the exhibition?", "Haben Sie di
 clean_data <- dplyr::bind_rows(berlin_data,
                              kiel_data)
 
-write.csv(clean_data, file = here::here("data/clean_data.csv"))
+# write.csv(clean_data, file = here::here("data/clean_data.csv"))
