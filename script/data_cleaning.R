@@ -172,3 +172,36 @@ clean_data <- dplyr::bind_rows(berlin_data,
                              kiel_data)
 
 # write.csv(clean_data, file = here::here("data/clean_data.csv"))
+
+## Age grouping (Peter)
+clean_data <- mutate(Age = 2021 - BirthYear, clean_data)
+
+clean_data <- clean_data %>% mutate(Age_group = case_when(
+   Age <= 30            ~ "0-30",
+   Age > 30 & Age <= 45 ~ "31-45",
+   Age > 45             ~ "> 45"
+),
+Gen_Age_group = case_when(
+   Age <= 24 ~ "Gen_Z",
+   Age > 24 & Age <= 40 ~ "Millenials",
+   Age > 40 ~ "Gen_X_Bommer")
+)
+
+table(clean_data$Age, clean_data$Age_group, useNA = "ifany")
+table(clean_data$Age, clean_data$Gen_Age_group, useNA = "ifany")
+
+prop.table(table(clean_data$Age_group))
+prop.table(table(clean_data$Gen_Age_group)) # Worked
+
+# Gender to factor
+table(clean_data$Gender, useNA = "always")
+class(clean_data$Gender)
+
+clean_data <- clean_data %>% mutate(Gender = factor(Gender))
+
+class(clean_data$Gender)
+table(clean_data$Gender, useNA = "always")
+
+# Save the Data
+# write.csv(clean_data, file = here::here("I:/pwind/Nextcloud/Datascience/OceanNow_data/grouped_data.csv"))
+
