@@ -2,7 +2,7 @@
 #Preparations
 library(tidyverse)
 
-clean_data <- read.csv(here::here("I:/pwind/Nextcloud/Datascience/OceanNow_data/clean_data.csv"))
+clean_data <- read.csv(here::here("data/clean_data.csv"))
 
 # Inspect the age variable
 names(clean_data)
@@ -78,6 +78,3 @@ class(clean_data$Time)
 his_time <- ggplot(clean_data, aes(x = Time)) +
   geom_histogram()
 print(his_time)
-
-# Save the Data
-write.csv(clean_data, file = here::here("I:/pwind/Nextcloud/Datascience/OceanNow_data/grouped_data.csv"))
