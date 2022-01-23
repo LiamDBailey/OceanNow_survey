@@ -65,7 +65,7 @@ dictionary <- data.frame(name = c("Have you seen the exhibition?", "Haben Sie di
 
 # BERLIN DATA ####
 
-(berlin_data <- readr::read_delim(here::here("./data/Ocean._Now_Berlin_-_all_versions_-_labels_-_2021-11-02-15-19-29.csv"), delim = ";",
+(berlin_data <- readr::read_delim(here::here("data/Ocean._Now_Berlin_-_all_versions_-_labels_-_2021-11-02-15-19-29.csv"), delim = ";",
                                   col_types = list(
                                     start = col_datetime(),
                                     end = col_datetime(),
@@ -117,7 +117,7 @@ dictionary <- data.frame(name = c("Have you seen the exhibition?", "Haben Sie di
 #These end up with different column titles because the names changed a bit over time (STUPID!)
 #We can overcome this by unchecking 'include fields from all X deployed version'
 
-(kiel_data <- readr::read_delim(here::here("./data/Ocean._Now_Kiel_-_latest_version_-_labels_-_2021-11-17-17-50-39.csv"), delim = ";",
+(kiel_data <- readr::read_delim(here::here("data/Ocean._Now_Kiel_-_latest_version_-_labels_-_2021-11-17-17-50-39.csv"), delim = ";",
                                   col_types = list(
                                     start = col_datetime(),
                                     end = col_datetime(),
@@ -171,4 +171,35 @@ dictionary <- data.frame(name = c("Have you seen the exhibition?", "Haben Sie di
 clean_data <- dplyr::bind_rows(berlin_data,
                              kiel_data)
 
+## Age grouping (Peter)
+clean_data <- mutate(Age = 2021 - BirthYear, clean_data)
+
+clean_data <- clean_data %>% mutate(Age_group = case_when(
+   Age <= 30            ~ "0-30",
+   Age > 30 & Age <= 45 ~ "31-45",
+   Age > 45             ~ "> 45"
+),
+Gen_Age_group = case_when(
+   Age <= 24 ~ "Gen_Z",
+   Age > 24 & Age <= 40 ~ "Millenials",
+   Age > 40 ~ "Gen_X_Bommer")
+)
+
+table(clean_data$Age, clean_data$Age_group, useNA = "ifany")
+table(clean_data$Age, clean_data$Gen_Age_group, useNA = "ifany")
+
+prop.table(table(clean_data$Age_group))
+prop.table(table(clean_data$Gen_Age_group)) # Worked
+
+# Gender to factor
+table(clean_data$Gender, useNA = "always")
+class(clean_data$Gender)
+
+clean_data <- clean_data %>% mutate(Gender = factor(Gender))
+
+class(clean_data$Gender)
+table(clean_data$Gender, useNA = "always")
+
+# Save the Data
 write.csv(clean_data, file = here::here("data/clean_data.csv"))
+

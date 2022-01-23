@@ -1,5 +1,5 @@
 # SUMMARY PLOTS ####
-clean_data <- read.csv(here::here("data/clean_data.csv"))
+clean_data <- read.csv(here::here("I:/pwind/Nextcloud/Datascience/OceanNow_data/clean_data.csv"))
 
 ## HOW MANY SURVEYS CONDUCTED AT EACH SITE? ####
 plot_data <- clean_data %>% 
