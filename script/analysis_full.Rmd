@@ -1,0 +1,974 @@
+---
+title: "OceanNow_survey_analysis"
+author: "Dr. Liam D. Bailey"
+date: "21/01/2022"
+output: html_document
+---
+
+```{r, echo = FALSE, message=FALSE}
+
+library(dplyr)
+library(DHARMa)
+library(binom)
+library(ggplot2)
+library(patchwork)
+library(ordinal)
+
+```
+
+# Introduction
+
+# Data preparation
+
+Load cleaned data
+
+```{r}
+
+clean_data <- read.csv(here::here("data/clean_data.csv"))
+
+```
+
+Remove records with unknown gender (6).
+
+```{r}
+
+table(clean_data$Gender)
+
+clean_data <- clean_data %>% 
+  dplyr::filter(Gender != "Other")
+
+```
+
+Use all data from Berlin. For Kiel, use only one survey from each individual (avoid paired data).
+
+```{r}
+
+## NEED TO SET SEED TO MAKE SURE WE GET THE SAME DATA FROM KIEL EACH TIME!
+set.seed(123)
+
+Berlin_data <- clean_data %>% 
+  filter(Location == "BERLIN")
+
+Kiel_data <- clean_data %>% 
+  filter(Location == "KIEL") %>% 
+  group_by(PersonalCode) %>% 
+  #Randomly select one survey from each individual
+  dplyr::slice(sample(1:n(), 1))
+
+clean_data <- bind_rows(Berlin_data, Kiel_data)
+
+table(clean_data$Location)
+
+```
+
+# Analysis
+
+## 1. Microplastic pollution is a major problem that needs to be addressed
+
+### Step 1: Check whether data can be grouped for logistic regression.
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Microplastic_importance_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "Microplastic pollution is a major problem that needs to be addressed") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*There is a clear bias towards 'strongly agree' so we will analyse this data using a logistic regression (7 v. <7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+##Turn Likert scale into binary variable
+Q1_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Microplastic_importance_LK == 7 ~ 1,
+                                                  Microplastic_importance_LK != 7 ~ 0))
+
+##Create model
+Q1_model <- glm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q1_data, family = binomial(link = "logit"))
+
+summary(Q1_model)
+
+```
+
+*No significant results. Results suggest that males are less likely to answer strongly agree than women. Treatment has no significant effect, although effect size is much larger in men than women.*
+
+### Step 3: Check model reliability
+
+Use DHARMa to check for issues of heteroskedasticity or outliers.
+
+```{r}
+
+##Check model using DHARMa
+simulationOutput <- simulateResiduals(Q1_model, seed = 123, n = 5000)
+plot(simulationOutput)
+
+```
+
+```{r}
+
+#Check there are no unusual residual patterns for each predictor
+plotResiduals(simulationOutput, form = as.factor(Q1_data$Gender))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q1_data$Age_group))
+
+```
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q1_data$Treatment))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q1_data$Location))
+
+```
+
+*No apparent issues with model.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q1_model_age <- glm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                    data = Q1_data, family = binomial(link = "logit"))
+
+summary(Q1_model_age)
+
+```
+
+*Results are qualitatively the same. We can continue just using 'generational' cut-offs.*
+
+### Step 4: Plot results
+
+```{r}
+
+## Plot results (gender and treatment)
+plot_data <- Q1_data %>% 
+  dplyr::group_by(Gender, Treatment) %>% 
+  dplyr::summarise(binom::binom.wilson(x = sum(response_category), n = n()), .groups = "drop")
+
+ggplot() +
+  geom_errorbar(data = plot_data, aes(x = Treatment, ymin = lower, ymax = upper, group = Gender),
+                size = 1.5, width = 0.25, position = position_dodge(width = 0.25)) +
+  geom_point(data = plot_data, aes(x = Treatment, y = mean, fill = Gender),
+             shape = 21, size = 4, stroke = 1.5, position = position_dodge(width = 0.25)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Before exhibition", "After exhibition")) +
+  labs(y = "Proportion 'strongly agree'", x = "",
+       title = "Microplastic pollution is a major problem that needs to be addressed") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+## 2. As humans we are able to act against microplastic pollution
+
+### Step 1: Check whether data can be grouped for logistic regression.
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Viable_action_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "As humans we are able to act against microplastic pollution") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*There is a clear bias towards 'strongly agree' so we will analyse this data using a logistic regression (7 v. <7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+##Turn Likert scale into binary variable
+Q2_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Viable_action_LK == 7 ~ 1,
+                                                  Viable_action_LK != 7 ~ 0))
+
+##Create model
+Q2_model <- glm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q2_data, family = binomial(link = "logit"))
+
+summary(Q2_model)
+
+```
+
+*Males are significantly less likely to answer strongly agree than women. Treatment has no significant effect, although effect size is much larger in men than women. Suggestion that Gen Z are less likely to answer strongly agree than GenX+.*
+
+### Step 3: Check model reliability
+
+Use DHARMa to check for issues of heteroskedasticity or outliers.
+
+```{r}
+
+##Check model using DHARMa
+simulationOutput <- simulateResiduals(Q2_model, seed = 123, n = 5000)
+plot(simulationOutput)
+
+```
+
+```{r}
+
+#Check there are no unusual residual patterns for each predictor
+plotResiduals(simulationOutput, form = as.factor(Q2_data$Gender))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q2_data$Age_group))
+
+```
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q2_data$Treatment))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q2_data$Location))
+
+```
+
+*No apparent issues with model.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q2_model_age <- glm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                    data = Q2_data, family = binomial(link = "logit"))
+
+summary(Q2_model_age)
+
+```
+
+*Results are less strong when using other age categories.* Why is this? What is the underlying pattern of age in the raw data?
+
+```{r}
+
+Q2_data %>% 
+  mutate(age_cutoff = cut(Age, breaks = c(seq(15, 45, 10), 85)),
+         age_cutoff_numeric = as.numeric(age_cutoff)) %>% 
+  group_by(age_cutoff_numeric) %>% 
+  summarise(binom::binom.wilson(x = sum(response_category), n = n()),
+            age_cutoff = first(age_cutoff)) %>% 
+  {ggplot(.) +
+      geom_errorbar(aes(x = age_cutoff_numeric, ymin = lower, ymax = upper), width = 0.25) +
+      geom_point(aes(x = age_cutoff_numeric, y = mean), size = 3, shape = 21, fill = "grey45") +
+      scale_x_continuous(breaks = seq(1:max(.$age_cutoff_numeric)),
+                         labels = .$age_cutoff) +
+      scale_y_continuous(limits = c(0, 1)) +
+      theme_classic()}
+
+```
+
+When using generations, 15-25 is its own group which have more pessimistic views that middle aged people. When using balanced age groups, Gen Z is grouped with some middle age and the effect is diluted. Could we even analyse this as a continous variable with quadratic effect?
+
+```{r}
+
+##Create model
+Q2_model_agequad <- glm(response_category ~ Gender + Gender:Treatment + poly(Age, 2) + Location,
+                    data = Q2_data, family = binomial(link = "logit"))
+
+summary(Q2_model_agequad)
+
+```
+
+```{r}
+
+AIC(Q2_model, Q2_model_age, Q2_model_agequad)
+
+```
+
+*Using generational cut-off is best fit comparing AIC.*
+
+### Step 4: Plot results
+
+```{r}
+
+## Plot results (gender and treatment)
+plot_data_treatment <- Q2_data %>% 
+  dplyr::group_by(Gender, Treatment) %>% 
+  dplyr::summarise(binom::binom.wilson(x = sum(response_category), n = n()), .groups = "drop")
+
+treatment_effect <- ggplot() +
+  geom_errorbar(data = plot_data_treatment, aes(x = Treatment, ymin = lower, ymax = upper, group = Gender),
+                size = 1.5, width = 0.25, position = position_dodge(width = 0.25)) +
+  geom_point(data = plot_data_treatment, aes(x = Treatment, y = mean, fill = Gender),
+             shape = 21, size = 4, stroke = 1.5, position = position_dodge(width = 0.25)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Before exhibition", "After exhibition")) +
+  labs(y = "Proportion 'strongly agree'", x = "",
+       title = "As humans we are able to act against microplastic pollution",
+       subtitle = "Effect of gender") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+plot_data_age <- Q2_data %>% 
+  group_by(Gen_Age_group, Treatment) %>% 
+  summarise(binom::binom.wilson(x = sum(response_category), n = n()), .groups = "drop") %>% 
+  mutate(Gen_Age_group = ordered(Gen_Age_group, levels = c("Gen_Z", "Millenials", "Gen_X_Bommer")))
+
+age_effect <- ggplot() +
+  geom_errorbar(data = plot_data_age, aes(x = Treatment, ymin = lower, ymax = upper, group = Gen_Age_group),
+                size = 1.5, width = 0.25, position = position_dodge(width = 0.25)) +
+  geom_point(data = plot_data_age, aes(x = Treatment, y = mean, fill = Gen_Age_group),
+             shape = 21, size = 4, stroke = 1.5, position = position_dodge(width = 0.25)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Before exhibition", "After exhibition")) +
+  scale_fill_manual(values = c("#33658a", "#4c9f70", "#ca3c25")) +
+  labs(y = "Proportion 'strongly agree'", x = "",
+       subtitle = "Effect of age") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+treatment_effect + age_effect
+
+```
+
+## 3. I have a personal responsibility to change my behaviour to avoid microplastic pollution
+
+### Step 1: Check whether data can be grouped for logistic regression.
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Personal_responsibility_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "I have a personal responsibility to change my behaviour to avoid microplastic pollution") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*There is a clear bias towards 'strongly agree' so we will analyse this data using a logistic regression (7 v. <7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+##Turn Likert scale into binary variable
+Q3_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Personal_responsibility_LK == 7 ~ 1,
+                                                  Personal_responsibility_LK != 7 ~ 0))
+
+##Create model
+Q3_model <- glm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q3_data, family = binomial(link = "logit"))
+
+summary(Q3_model)
+
+```
+
+*Males are significantly less likely to strongly agree about personal responsibility; however, they are also significantly (positively) affected by the exhibition. Effect sizes of all other (non-significant) effects is much smaller.*
+
+### Step 3: Check model reliability
+
+Use DHARMa to check for issues of heteroskedasticity or outliers.
+
+```{r}
+
+##Check model using DHARMa
+simulationOutput <- simulateResiduals(Q3_model, seed = 123, n = 5000)
+plot(simulationOutput)
+
+```
+
+```{r}
+
+#Check there are no unusual residual patterns for each predictor
+plotResiduals(simulationOutput, form = as.factor(Q3_data$Gender))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q3_data$Age_group))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q3_data$Treatment))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q3_data$Location))
+
+```
+
+*No apparent issues with model.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q3_model_age <- glm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                    data = Q3_data, family = binomial(link = "logit"))
+
+summary(Q3_model_age)
+
+```
+
+*Results are qualitatively the same. We can continue just using 'generational' cut-offs.*
+
+### Step 4: Plot results
+
+```{r}
+
+## Plot results (gender and treatment)
+plot_data <- Q3_data %>% 
+  dplyr::group_by(Gender, Treatment) %>% 
+  dplyr::summarise(binom::binom.wilson(x = sum(response_category), n = n()), .groups = "drop")
+
+ggplot() +
+  geom_errorbar(data = plot_data, aes(x = Treatment, ymin = lower, ymax = upper, group = Gender),
+                size = 1.5, width = 0.25, position = position_dodge(width = 0.25)) +
+  geom_point(data = plot_data, aes(x = Treatment, y = mean, fill = Gender),
+             shape = 21, size = 4, stroke = 1.5, position = position_dodge(width = 0.25)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Before exhibition", "After exhibition")) +
+  labs(y = "Proportion 'strongly agree'", x = "",
+       title = "I have a personal responsibility to change my behaviour to avoid microplastic pollution") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+## 4. Politicians have a responsibility to implement legislation to avoid microplastic pollution
+
+### Step 1: Check whether data can be grouped for logistic regression.
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Political_responsibility_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "Politicians have a responsibility to implement legislation to avoid microplastic pollution") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*There is a clear bias towards 'strongly agree' so we will analyse this data using a logistic regression (7 v. <7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+##Turn Likert scale into binary variable
+Q4_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Political_responsibility_LK == 7 ~ 1,
+                                                  Political_responsibility_LK != 7 ~ 0))
+
+##Create model
+Q4_model <- glm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q4_data, family = binomial(link = "logit"))
+
+summary(Q4_model)
+
+```
+
+*No significant effects. All effect sizes are quite small.*
+
+### Step 3: Check model reliability
+
+Use DHARMa to check for issues of heteroskedasticity or outliers.
+
+```{r}
+
+##Check model using DHARMa
+simulationOutput <- simulateResiduals(Q4_model, seed = 123, n = 5000)
+plot(simulationOutput)
+
+```
+
+```{r}
+
+#Check there are no unusual residual patterns for each predictor
+plotResiduals(simulationOutput, form = as.factor(Q4_data$Gender))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q4_data$Age_group))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q4_data$Treatment))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q4_data$Location))
+
+```
+
+*No apparent issues with model.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q4_model_age <- glm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                    data = Q4_data, family = binomial(link = "logit"))
+
+summary(Q4_model_age)
+
+```
+
+*Results are qualitatively the same. Some suggestion of effect in 31-45yo group, but not significant. We will continue just using 'generational' cut-offs.*
+
+### Step 4: Plot results
+
+```{r}
+
+## Plot results (gender and treatment)
+plot_data <- Q4_data %>% 
+  dplyr::group_by(Gender, Treatment) %>% 
+  dplyr::summarise(binom::binom.wilson(x = sum(response_category), n = n()), .groups = "drop")
+
+ggplot() +
+  geom_errorbar(data = plot_data, aes(x = Treatment, ymin = lower, ymax = upper, group = Gender),
+                size = 1.5, width = 0.25, position = position_dodge(width = 0.25)) +
+  geom_point(data = plot_data, aes(x = Treatment, y = mean, fill = Gender),
+             shape = 21, size = 4, stroke = 1.5, position = position_dodge(width = 0.25)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Before exhibition", "After exhibition")) +
+  labs(y = "Proportion 'strongly agree'", x = "",
+       title = "Politicians have a responsibility to implement legislation to avoid microplastic pollution") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+## 5. Climate change is the most important problem facing our society
+
+### Step 1: Check whether data can be grouped for logistic regression.
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Climate_importance_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "Climate change is the most important problem facing our society") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*There is a clear bias towards 'strongly agree' so we will analyse this data using a logistic regression (7 v. <7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+##Turn Likert scale into binary variable
+Q5_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Climate_importance_LK == 7 ~ 1,
+                                                  Climate_importance_LK != 7 ~ 0))
+
+##Create model
+Q5_model <- glm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q5_data, family = binomial(link = "logit"))
+
+summary(Q5_model)
+
+```
+
+*Millenials are significantly more likely to care about climate change than GenX+. GenZ also has similar effect size, although not significant. People in Kiel were much more likely to care about climate change than in Berlin. Males still appear to be less concerned than women overall. No effect of treatment.*
+
+### Step 3: Check model reliability
+
+Use DHARMa to check for issues of heteroskedasticity or outliers.
+
+```{r}
+
+##Check model using DHARMa
+simulationOutput <- simulateResiduals(Q5_model, seed = 123, n = 5000)
+plot(simulationOutput)
+
+```
+
+```{r}
+
+#Check there are no unusual residual patterns for each predictor
+plotResiduals(simulationOutput, form = as.factor(Q5_data$Gender))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q5_data$Age_group))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q5_data$Treatment))
+
+```
+
+```{r}
+
+plotResiduals(simulationOutput, form = as.factor(Q5_data$Location))
+
+```
+
+*No apparent issues with model.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q5_model_age <- glm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                    data = Q5_data, family = binomial(link = "logit"))
+
+summary(Q5_model_age)
+
+```
+
+*Results are qualitatively the same. We can continue just using 'generational' cut-offs.*
+
+### Step 4: Plot results
+
+```{r}
+
+## Plot results (gender and treatment)
+plot_data <- Q5_data %>% 
+  dplyr::group_by(Gender, Treatment) %>% 
+  dplyr::summarise(binom::binom.wilson(x = sum(response_category), n = n()), .groups = "drop")
+
+ggplot() +
+  geom_errorbar(data = plot_data, aes(x = Treatment, ymin = lower, ymax = upper, group = Gender),
+                size = 1.5, width = 0.25, position = position_dodge(width = 0.25)) +
+  geom_point(data = plot_data, aes(x = Treatment, y = mean, fill = Gender),
+             shape = 21, size = 4, stroke = 1.5, position = position_dodge(width = 0.25)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Before exhibition", "After exhibition")) +
+  labs(y = "Proportion 'strongly agree'", x = "",
+       title = "Climate change is the most important problem facing our society") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+## 7. I would be willing to pay 50% more for products that do not contain microplastics
+
+### Step 1: Check whether data can be grouped for logistic regression.
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Willingness_price_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "I would be willing to pay 50% more for products that do not contain microplastics") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*Responses are more evenly spread than previous questions. Instead we will need to analyse using ordinal logistic regression (1-2; 3-5; 6-7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+Q7_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Willingness_price_LK < 3 ~ "Disagree",
+                                                     Willingness_price_LK >= 3 & Willingness_price_LK < 6 ~ "Neutral",
+                                                     Willingness_price_LK >= 6 ~ "Agree")) %>% 
+  #Make the new category ordered
+  dplyr::mutate(response_category = ordered(response_category, levels = c("Disagree", "Neutral", "Agree")),
+                across(.cols = c(Gen_Age_group, Location, Gender), .fns = as.factor))
+
+##Create model
+Q7_model <- clm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q7_data, link = "logit")
+
+summary(Q7_model)
+
+```
+
+*No significant effects. All effect sizes are quite small.*
+
+### Step 3: Check model reliability
+
+```{r}
+
+nominal_test(Q7_model)
+
+```
+
+*No evidence of violation for proportional odds assumption according to test with 'ordinal'.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q7_model_age <- clm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                data = Q7_data, link = "logit")
+
+summary(Q7_model_age)
+
+```
+
+*Using different age category suggests stronger effects of Location and Age.*
+
+### Step 4: Plot results
+
+Plot raw data. Proportion of each group for each gender/treatment combo.
+
+```{r}
+
+Q7_data %>% 
+  group_by(Gender, Treatment) %>% 
+  summarise(disagree = binom::binom.wilson(x = sum(response_category == "Disagree"), n = n()),
+            neutral = binom::binom.wilson(x = sum(response_category == "Neutral"), n = n()),
+            agree = binom::binom.wilson(x = sum(response_category == "Agree"), n = n())) %>% 
+  rowwise() %>% 
+  mutate(disagree_ymin = disagree$lower, disagree_ymax = disagree$upper, disagree_mean = disagree$mean,
+         neutral_ymin = neutral$lower, neutral_ymax = neutral$upper, neutral_mean = neutral$mean,
+         agree_ymin = agree$lower, agree_ymax = agree$upper, agree_mean = agree$mean) %>% 
+  ungroup() %>% 
+  tidyr::pivot_longer(cols = disagree_ymin:agree_mean) %>% 
+  tidyr::separate(col = name, into = c("category", "variable")) %>% 
+  tidyr::pivot_wider(names_from = variable, values_from = value) %>%
+  {ggplot(.) +
+      geom_errorbar(aes(x = Treatment, ymin = ymin, ymax = ymax, group = category),
+                    width = 0.25, position = position_dodge(width = 0.5)) +
+      geom_point(aes(x = Treatment, y = mean, fill = category, group = category),
+                 size = 3, position = position_dodge(width = 0.5), shape = 21) +
+      scale_fill_manual(values = c("green", "red", "blue")) +
+      facet_wrap(facets = ~Gender)}
+
+```
+
+## 8. Willing to participate! OLR!
+
+### Step 1: I would be willing to participate in collective actions to address microplastic pollution (e.g. demonstrations)
+
+```{r}
+
+ggplot() +
+  geom_bar(data = clean_data, aes(x = Willingness_community_LK), colour = "black") +
+  scale_x_continuous(name = "", limits = c(0.5, 7.5),
+                     breaks = seq(1, 7, 1), labels = c("Strongly disagree", 2:6, "Strongly agree")) +
+  scale_y_continuous(name = "Responses") +
+  labs(title = "I would be willing to participate in collective actions to address microplastic pollution (e.g. demonstrations)") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black"))
+
+```
+
+*Responses are more evenly spread than previous questions. Instead we will need to analyse using ordinal logistic regression (1-2; 3-5; 6-7).*
+
+### Step 2: Fit preliminary model
+
+We include an interaction between gender and treatment to see if effect of exhibition has different effects on men and women. To start with we use age groups defined by 'generations'. We will check to see if this differs if we use age groups that are more balanced. We include Location to make sure there is no difference between Kiel and Berlin.
+
+```{r}
+
+Q8_data <- clean_data %>% 
+  dplyr::mutate(response_category = dplyr::case_when(Willingness_community_LK < 3 ~ "Disagree",
+                                                     Willingness_community_LK >= 3 & Willingness_community_LK < 6 ~ "Neutral",
+                                                     Willingness_community_LK >= 6 ~ "Agree")) %>% 
+  #Make the new category ordered
+  dplyr::mutate(response_category = ordered(response_category, levels = c("Disagree", "Neutral", "Agree")),
+                across(.cols = c(Gen_Age_group, Location, Gender), .fns = as.factor))
+
+##Create model
+Q8_model <- clm(response_category ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                data = Q8_data, link = "logit")
+
+summary(Q8_model)
+
+```
+
+*No significant effects. All effect sizes are quite small.*
+
+### Step 3: Check model reliability
+
+```{r}
+
+nominal_test(Q8_model)
+
+```
+
+*No evidence of violation for proportional odds assumption according to test with 'ordinal'.*
+
+### Step 3b: Check that fitting model with alternative age group gives the same results.
+
+```{r}
+
+##Create model
+Q8_model_age <- clm(response_category ~ Gender + Gender:Treatment + Age_group + Location,
+                data = Q8_data, link = "logit")
+
+summary(Q8_model_age)
+
+```
+
+*Using different age category suggests stronger effects of Location and Age!*
+
+### Step 4: Plot results
+
+Plot raw data. Proportion of each group for each gender/treatment combo.
+
+```{r}
+
+Q8_data %>% 
+  group_by(Gender, Treatment) %>% 
+  summarise(disagree = binom::binom.wilson(x = sum(response_category == "Disagree"), n = n()),
+            neutral = binom::binom.wilson(x = sum(response_category == "Neutral"), n = n()),
+            agree = binom::binom.wilson(x = sum(response_category == "Agree"), n = n())) %>% 
+  rowwise() %>% 
+  mutate(disagree_ymin = disagree$lower, disagree_ymax = disagree$upper, disagree_mean = disagree$mean,
+         neutral_ymin = neutral$lower, neutral_ymax = neutral$upper, neutral_mean = neutral$mean,
+         agree_ymin = agree$lower, agree_ymax = agree$upper, agree_mean = agree$mean) %>% 
+  ungroup() %>% 
+  tidyr::pivot_longer(cols = disagree_ymin:agree_mean) %>% 
+  tidyr::separate(col = name, into = c("category", "variable")) %>% 
+  tidyr::pivot_wider(names_from = variable, values_from = value) %>%
+  {ggplot(.) +
+      geom_errorbar(aes(x = Treatment, ymin = ymin, ymax = ymax, group = category),
+                    width = 0.25, position = position_dodge(width = 0.5)) +
+      geom_point(aes(x = Treatment, y = mean, fill = category, group = category),
+                 size = 3, position = position_dodge(width = 0.5), shape = 21) +
+      scale_fill_manual(values = c("green", "red", "blue")) +
+      facet_wrap(facets = ~Gender)}
+
+```
+
+## 9. Are people willing to sign petition or sign up for newsletter?
+
+### Step 1: How should we organise the data?
+
+People can choose both of sign petition and sign-up for newsletter. We could analyse any activity v. no activity or analyse each type of activity separately using an 'activity type' variable. We will try both.
+
+### Step 1a: Any activity v. no activity
+
+```{r}
+
+Q9a_data <- clean_data %>% 
+  dplyr::mutate(across(.cols = c(Newsletter, Petition), .fns = ~tidyr::replace_na(., 0L))) %>%
+  rowwise() %>% 
+  dplyr::mutate(any_action = as.numeric(sum(Newsletter, Petition) > 0))
+
+```
+
+```{r}
+
+Q9a_model <- glm(any_action ~ Gender + Gender:Treatment + Gen_Age_group + Location,
+                 family = binomial(link = "logit"), data = Q9a_data)
+
+summary(Q9a_model)
+
+```
+
+*If we look at chance to take any action GenZ are most likely to take action (significantly more likely than GenX+). Millenials are also more likely, but not significant. Treatment has no effect.*
+
+### Step 1b: Separate activities
+
+```{r}
+
+Q9b_data <- clean_data %>% 
+  mutate(across(.cols = c(Newsletter, Petition), .fns = ~tidyr::replace_na(., 0L))) %>% 
+  tidyr::pivot_longer(cols = c(Newsletter, Petition), names_to = "Action")
+
+```
+
+```{r}
+
+Q9b_model <- glmer(value ~ Gender + Gender:Treatment + Gen_Age_group + 
+                    Location + Action + Action:Gen_Age_group + (1|X_id), family = binomial(link = "logit"), data = Q9b_data)
+
+summary(Q9b_model)
+
+```
+
+*Significantly more likely to sign a petition than sign up for a newsletter! Effect of age seems to be because GenZ are much more likely to sign petitions!*
+
+## Presentation plot
+
+### Plot 1: Show effects of all our logistic regression with *relative* change in proportion strongly agree
+
+```{r}
+
+clean_data %>% 
+  dplyr::mutate(across(.cols = c(Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
+                                 Political_responsibility_LK, Climate_importance_LK),
+                       .fns = ~ dplyr::case_when(. == 7 ~ 1,
+                                                 . != 7 ~ 0))) %>% 
+  dplyr::select(Gender, Treatment, Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
+                                 Political_responsibility_LK, Climate_importance_LK) %>% 
+  tidyr::pivot_longer(cols = c(Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
+                                 Political_responsibility_LK, Climate_importance_LK)) %>% 
+  group_by(Gender, Treatment, name) %>% 
+  summarise(binom::binom.wilson(x = sum(value), n = n()), .groups = "drop") %>% 
+  dplyr::select(Gender, Treatment, question = name, mean) %>% 
+  dplyr::mutate(Treatment = dplyr::case_when(Treatment == TRUE ~ "B_After",
+                                             Treatment == FALSE ~ "A_Before")) %>% 
+  tidyr::pivot_wider(names_from = Treatment, values_from = mean) %>% 
+  rowwise() %>% 
+  dplyr::mutate(across(.cols = c(B_After, A_Before), .fns = ~./A_Before)) %>% 
+  ungroup() %>% 
+  tidyr::pivot_longer(cols = c(A_Before, B_After), names_to = "Treatment") %>% 
+  {ggplot(.) +
+      geom_line(aes(x = Treatment, y = value, colour = Gender, group = Gender), size = 1) +
+      facet_wrap(facets = ~question)}
+  
+
+```
