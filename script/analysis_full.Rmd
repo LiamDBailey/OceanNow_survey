@@ -57,17 +57,6 @@ clean_data <- read.csv(here::here("data/clean_data.csv"))
 
 ```
 
-Remove records with unknown gender (6).
-
-```{r}
-
-table(clean_data$Gender)
-
-clean_data <- clean_data %>% 
-  dplyr::filter(Gender != "Other")
-
-```
-
 Use all data from Berlin. For Kiel, use only one survey from each individual (avoid paired data).
 
 ```{r}
@@ -84,9 +73,20 @@ Kiel_data <- clean_data %>%
   #Randomly select one survey from each individual
   dplyr::slice(sample(1:n(), 1))
 
-clean_data <- bind_rows(Berlin_data, Kiel_data)
+clean_data_indv <- bind_rows(Berlin_data, Kiel_data)
 
-table(clean_data$Location)
+table(clean_data_indv$Location)
+
+```
+
+Remove records with unknown gender (6).
+
+```{r}
+
+table(clean_data_indv$Gender)
+
+clean_data <- clean_data_indv %>% 
+  dplyr::filter(Gender != "Other")
 
 ```
 
@@ -1360,9 +1360,67 @@ gender + age
 
 ## Presentation plot
 
+### Prepare custom fonts
+
+```{r}
+
+library(systemfonts)
+library(ragg)
+
+systemfonts::register_font(name = "Montserrat100",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Thin.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraLight.ttf")
+systemfonts::register_font(name = "Montserrat200",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraLight.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Light.ttf")
+systemfonts::register_font(name = "Montserrat300",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Light.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Regular.ttf")
+systemfonts::register_font(name = "Montserrat400",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Regular.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Medium.ttf")
+systemfonts::register_font(name = "Montserrat500",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Medium.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-SemiBold.ttf")
+systemfonts::register_font(name = "Montserrat600",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-SemiBold.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Bold.ttf")
+systemfonts::register_font(name = "Montserrat700",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Bold.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraBold.ttf")
+systemfonts::register_font(name = "Montserrat800",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraBold.ttf",
+                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Black.ttf")
+systemfonts::register_font(name = "Montserrat900",
+                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Black.ttf")
+
+```
+
 What are the key take-aways we want to present?
 
-### Plot 1: Male responses differ before/after exhibition.
+### Plot 1: Summary stats of survey group
+
+Extract summary statistics that we can just present as single numbers
+
+```{r}
+
+clean_data_indv %>% 
+  group_by(Gender) %>% 
+  summarise(n = n()) %>%
+  mutate(round((n/sum(n))*100))
+
+```
+
+```{r}
+
+clean_data %>% 
+  group_by(Treatment) %>% 
+  summarise(n = n()) %>%
+  mutate(round((n/sum(n))*100))
+
+```
+
+### Plot 2: Male responses differ before/after exhibition.
 
 Plot type: Slope plot
 
@@ -1392,16 +1450,15 @@ raw_data <- clean_data %>%
 
 ```
 
-#### Plot 1a: Try males alone plot
+#### Plot 2a: Try males alone plot
 
 ```{r}
 
 #Set standard font sizes that can be easily changed
 title_size <- 15
 subtitle_size <- 10
-caption_size <- 6
-label_size <- 9
-# result_size
+caption_size <- 7
+label_size <- 8
 sig_colour <- '#33658a'
 emph_colour <- "grey25"
 nonemph_colour <- "grey50"
@@ -1433,25 +1490,25 @@ plot_data <- raw_data %>%
 
 #This data frame is used to create in graph highlight text (i.e. to emphaises/explain key results)
 text_data <- data.frame(x = c(0.1),
-                        y = c(20),
-                        label = c(glue::glue("<span style='color:{sig_colour}'>**Personal responsibility (Q3)**</span><br>showed a significant difference", sig_colour = sig_colour)))
+                        y = c(25),
+                        label = c(glue::glue("<span style='color:{sig_colour}'>**Personal responsibility (Q3)**</span><br>showed a significant improvement", sig_colour = sig_colour)))
 
 #Create plot
-plot_data %>% 
+plot <- plot_data %>% 
   {ggplot() +
       #Fit slopes for every question. Fit separately for non-significant and significant data so that significant data is at front
       geom_line(data = filter(., !sig),
                 aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 1, colour = nonemph_colour) +
       geom_line(data = filter(., sig),
-                aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 1, colour = sig_colour) +
+                aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 1.5, colour = sig_colour) +
       #Fit before/after points for every question. Fit separately so that significant data is at front
       geom_point(data = filter(., !sig),
                  aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 3.25, colour = nonemph_colour) +
       geom_point(data = filter(., sig),
-                 aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 3.25, colour = sig_colour) +
+                 aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 4, colour = sig_colour) +
       #Add labels to show which line is associated with which question
       ggtext::geom_richtext(data = filter(., Treatment == 0),
-                            aes(x = Treatment - 0.55,
+                            aes(x = Treatment - 0.5,
                                 y = mean*100,
                                 label = Q_df$Short_wording[Q_df$Qnumber == QuestionNumber],
                                 colour = sig),
@@ -1460,7 +1517,7 @@ plot_data %>%
                             #Remove box around text
                             fill = NA, label.color = NA,
                             #Reduce line height to make text more compact
-                            lineheight = 0.1) +
+                            lineheight = 0.1, family = "Montserrat500") +
       #Add percentage values before exhibition
       ggtext::geom_richtext(data = filter(., Treatment == 0),
                             aes(x = Treatment - 0.07,
@@ -1469,7 +1526,7 @@ plot_data %>%
                                                    number = round(mean*100),
                                                    label_size = label_size),
                                 colour = sig),
-                            fill = NA, label.color = NA) +
+                            fill = NA, label.color = NA, family = "Montserrat500") +
       #Add percentage values after exhibition. Remove Q4 because value is identical to Q3
       ggtext::geom_richtext(data = filter(., Treatment == 1 & QuestionNumber != "Q4"),
                             aes(x = Treatment + 0.07,
@@ -1478,18 +1535,18 @@ plot_data %>%
                                                    number = round(mean*100),
                                                    label_size = label_size),
                                 colour = sig),
-                            fill = NA, label.color = NA) +
+                            fill = NA, label.color = NA, family = "Montserrat500") +
       #Add text to highlight result
       ggtext::geom_richtext(data = text_data,
                             aes(x = x, y = y, label = label),
                             fill = NA, label.color = NA, colour = emph_colour,
-                            hjust = 0) +
+                            hjust = 0, family = "Montserrat600") +
       #Add labels to specify before/after
       ggtext::geom_richtext(aes(x = c(0, 1),
                                 y = c(85, 85),
-                                label = c("<span>Before</span>",
-                                          "<span>After</span>")),
-                            fill = NA, label.color = NA, colour = emph_colour) +
+                                label = c("<span>BEFORE</span>",
+                                          "<span>AFTER</span>")),
+                            fill = NA, label.color = NA, colour = emph_colour, family = "Montserrat600") +
       # coord_cartesian(expand = FALSE, clip = "off") +
       #Add title, subtitle, and caption
       labs(title = glue::glue("<span style = 'font-size:{title_size}pt; color:{emph_colour}'>Men were</span><span style = 'font-size:{bigtitle_size}pt; color: {sig_colour}'> **more likely** </span><span style = 'font-size:{title_size}pt; color: grey25'>to strongly agree with statements<br>after seeing the exhibition</span>", title_size = title_size,
@@ -1497,13 +1554,13 @@ plot_data %>%
                               emph_colour = emph_colour,
                               sig_colour = sig_colour),
            subtitle = glue::glue("<span style='font-size:{subtitle_size}pt; color:{nonemph_colour}'>Percentage of male respondants that answer 'strongly agree'</span>", subtitle_size = subtitle_size, nonemph_colour = nonemph_colour),
-           caption = glue::glue("<span style='font-size:{caption_size}pt; color:{nonemph_colour}'>Data: Survey data from In Your Face exhibition in Berlin (N = 35) and Kiel (N = 8)</span>", caption_size = caption_size, nonemph_colour = nonemph_colour)) +
+           caption = glue::glue("<span style='font-size:{caption_size}pt; color:{emph_colour}'>Data: Survey data from In Your Face exhibition in Berlin (N = 35) and Kiel (N = 8)</span>", caption_size = caption_size, nonemph_colour = nonemph_colour)) +
       #Specify the colour of significant text/lines etc
       scale_colour_manual(values = c(nonemph_colour, sig_colour)) +
       #Settings for x axis (many of these are redundant given theme but keep them incase we shift back)
       scale_x_continuous(name = "",
                          breaks = c(0, 1),
-                         limits = c(-0.55, 1.55),
+                         limits = c(-0.5, 1.25),
                          expand = c(0, 0),
                          labels = c("Before", "After")) +
       #Settings for y axis (many of these are redundant given theme but keep them incase we shift back)
@@ -1515,9 +1572,9 @@ plot_data %>%
                          position = "right") +
       theme_classic() +
       theme(legend.position = "none",
-            plot.title = element_markdown(),
-            plot.subtitle = element_markdown(),
-            plot.caption = element_markdown(),
+            plot.title = element_markdown(family = "Montserrat700", lineheight = 1.2),
+            plot.subtitle = element_markdown(family = "Montserrat600"),
+            plot.caption = element_markdown(family = "Montserrat300"),
             axis.line.y = element_blank(),
             axis.ticks.y = element_blank(),
             axis.text.y = element_blank(),
@@ -1527,186 +1584,92 @@ plot_data %>%
             axis.text.x = element_blank(),
             axis.title.x = element_blank())}
 
-ggplot2::ggsave(file = here::here("./plot/Male_effect.png"), height = 5, width = 7, dpi = 600)
+ggsave(here::here("./plot/Male_effect.png"), plot = plot,
+       device = ragg::agg_png, dpi = 300, height = 150, width = 220, units = "mm")
+
+knitr::include_graphics(here::here("./plot/Male_effect.png"))
 
 ```
 
-#### Plot 1b: Combined plot
+
+### Plot 3: Show bias towards strongly agree
+
+Plot type: Stacked horizontal barplot
+
+Key goals:
+- Show that Q1-5 were heavily biased towards 'strongly agree' (for appendix if asked about analysis choice)
+
+#### Data prep
+
+```{r}
+
+raw_data <- clean_data %>% 
+  dplyr::select(ID = X_id, Gender, Treatment, Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
+                Political_responsibility_LK, Climate_importance_LK) %>% 
+  tidyr::pivot_longer(cols = c(Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
+                               Political_responsibility_LK, Climate_importance_LK)) %>% 
+  group_by(ID) %>% 
+  dplyr::mutate(QuestionNumber = paste0("Q", 1:n()))
+
+```
+
+#### Create plot
 
 ```{r}
 
 #Set standard font sizes that can be easily changed
 title_size <- 15
 subtitle_size <- 10
-caption_size <- 6
-label_size <- 9
-# result_size
+caption_size <- 7
+label_size <- 8
 sig_colour <- '#33658a'
 emph_colour <- "grey25"
 nonemph_colour <- "grey50"
 
-#This data frame is used to create labels for plot.
-#Can either show question number, full question wording or shortened question wording
-Q_df <- data.frame(Qnumber = paste0("Q", 1:5),
-                   Wording = c("Microplastic pollution is a major problem that needs to be addressed",
-                               "We as humans are able to act against microplastic pollution",
-                               "I have a personal responsibility to change my behaviour to avoid microplastic pollution",
-                               "Politicians have a responsibility to implement legislation to avoid microplastic pollution",
-                               "Climate change is the most important problem facing our society"),
-                   #Use glue so that we can add in standard font size for labels
-                   Short_wording = c(glue::glue("<span style = 'font-size:{label_size}pt;'>Microplastic importance</span>", label_size = label_size),
-                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Humans can act on<br>microplastics</span>", label_size = label_size),
-                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Personal responsibility</span>", label_size = label_size),
-                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Politician responsibility</span>", label_size = label_size),
-                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Climate change<br>importance</span>", label_size = label_size)))
+percentage_stronglyagree <- raw_data %>% 
+  group_by(QuestionNumber) %>% 
+  summarise(percentage = paste0(round((sum(value == 7)/n()) * 100), "%"))
 
-
-#Create plot data for males only
-plot_data <- raw_data %>% 
-  group_by(Gender, Treatment, QuestionNumber) %>% 
-  summarise(binom::binom.wilson(x = sum(value), n = n()), .groups = "drop") %>% 
-  dplyr::mutate(Treatment = as.numeric(Treatment),
-                #Create a separate category for Q3 (personal responsibility) which was significant
-                sig = Gender == "Male" & QuestionNumber == "Q3")
-
-#This data frame is used to create in graph highlight text (i.e. to emphaises/explain key results)
-text_data <- data.frame(x = c(0.1),
-                        y = c(20),
-                        Gender = c("Male"),
-                        label = c(glue::glue("<span style='color:{sig_colour}; font-weight: bold'>**Personal responsibility (Q3)**</span><br>showed a significant difference in men", sig_colour = sig_colour)))
-
-#Create plot
-plot_data %>% 
+plot <- raw_data %>% 
   {ggplot() +
-      #Fit slopes for every question. Fit separately for non-significant and significant data so that significant data is at front
-      geom_line(data = filter(., !sig), aes(x = Treatment, y = mean*100, group = QuestionNumber, colour = Gender), size = 1, colour = nonemph_colour) +
-      geom_line(data = filter(., sig), aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 1, colour = sig_colour) +
-      #Fit before/after points for every question. Fit separately so that significant data is at front
-      geom_point(data = filter(., !sig), aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 3.25, colour = nonemph_colour) +
-      geom_point(data = filter(., sig), aes(x = Treatment, y = mean*100, group = QuestionNumber), size = 3.25, colour = sig_colour) +
-      #Add labels to show which line is associated with which question
-      ggtext::geom_richtext(data = filter(., Treatment == 0),
-                            aes(x = Treatment - 0.55,
-                                y = mean*100,
-                                label = rep(Q_df$Short_wording, times = 2),
-                                colour = sig),
-                            #Left justify to create clean lines
-                            hjust = 0,
-                            #Remove box around text
-                            fill = NA, label.color = NA,
-                            #Reduce line height to make text more compact
-                            lineheight = 0.2) +
-      #Add percentage values before exhibition
-      ggtext::geom_richtext(data = filter(., Treatment == 0), aes(x = Treatment - 0.07,
-                                                                  y = mean*100,
-                                                                  label = glue::glue("<span style = 'font-size:{label_size}pt;'>{number}%</span>",
-                                                                                     number = round(mean*100),
-                                                                                     label_size = label_size),
-                                                                  colour = sig),
-                            fill = NA, label.color = NA) +
-      #Add percentage values after exhibition. Remove Q4 for males because value is identical to Q3
-      ggtext::geom_richtext(data = filter(., Treatment == 1 & !(QuestionNumber == "Q4" & Gender == "Male")), aes(x = Treatment + 0.07,
-                                                                                                                 y = mean*100,
-                                                                                                                 label = glue::glue("<span style = 'font-size:{label_size}pt;'>{number}%</span>",
-                                                                                                                                    number = round(mean*100),
-                                                                                                                                    label_size = label_size),
-                                                                                                                 colour = sig),
-                            fill = NA, label.color = NA) +
-      #Add text to highlight result
-      ggtext::geom_richtext(data = text_data,
-                            aes(x = x, y = y, label = label),
-                            fill = NA, label.color = NA, colour = emph_colour,
-                            hjust = 0) +
-      #Add labels to specify before/after
-      ggtext::geom_richtext(data = data.frame(x = c(0, 1, 0, 1),
-                                              y = c(95, 95, 95, 95),
-                                              Gender = c("Male", "Male", "Female", "Female"),
-                                              label = c("<span>Before</span>",
-                                                        "<span>After</span>",
-                                                        "<span>Before</span>",
-                                                        "<span>After</span>")),
-                            aes(x = x,
-                                y = y,
-                                label = label),
-                            fill = NA, label.color = NA, colour = emph_colour) +
-      #Add title, subtitle, and caption
-      labs(title = glue::glue("<span style = 'font-size:{title_size}pt; color:{emph_colour}'>Men were</span><span style = 'font-size:{bigtitle_size}pt; font-weight: bold; color: #33658a'> **more likely** </span><span style = 'font-size:{title_size}pt; color: grey25'>to strongly agree with statements<br>after seeing the exhibition</span>", title_size = title_size, bigtitle_size = title_size + 3, emph_colour = emph_colour),
-           subtitle = glue::glue("<span style='font-size:{subtitle_size}pt; color:{nonemph_colour}'>Percentage of respondants that answer 'strongly agree'</span>", subtitle_size = subtitle_size, nonemph_colour = nonemph_colour),
-           caption = glue::glue("<span style='font-size:{caption_size}pt; color:{nonemph_colour}'>Data: Survey data from In Your Face exhibition in Berlin (N = 35) and Kiel (N = 8)</span>", caption_size = caption_size, nonemph_colour = nonemph_colour)) +
-      #Specify the colour of significant text/lines etc
-      scale_colour_manual(values = c(nonemph_colour, sig_colour)) +
-      #Settings for x axis (many of these are redundant given theme but keep them incase we shift back)
-      scale_x_continuous(name = "",
-                         breaks = c(0, 1),
-                         limits = c(-0.55, 1.55),
-                         expand = c(0, 0),
-                         labels = c("Before", "After")) +
-      #Settings for y axis (many of these are redundant given theme but keep them incase we shift back)
-      scale_y_continuous(name = "Percentage 'strongly agree'",
-                         breaks = seq(0, 100, 25),
-                         limits = c(0, 100),
-                         expand = c(0, 0),
-                         labels = paste0(seq(0, 100, 25), "%"),
-                         position = "right") +
-      facet_wrap(facets = ~Gender) +
+      geom_bar(data = ., aes(x = QuestionNumber, fill = as.factor(value), y = ..count../sum(..count..)), colour = "black") +
+      geom_text(data = percentage_stronglyagree,
+                aes(x = QuestionNumber, y = 0.015, label = percentage),
+                family = "Montserrat400", colour = "grey95") +
+      labs(title = glue::glue("Majority of respondants answered <span style='color:{sig_colour}'>**strongly agree**</span>",
+                              sig_colour = sig_colour),
+           subtitle = glue::glue("<span style='color:{sig_colour}'>**strongly agree**</span> | <span style='color:grey45'>**6**</span> | <span style='color:grey55'>**5**</span> | <span style='color:grey65'>**4**</span> | <span style='color:grey75'>**3**</span> | <span style='color:grey85'>**2**</span> | <span style='color:grey95'>**strongly disagree**</span>")) +
+      scale_y_continuous(position = "right",
+                         labels = seq(0, 100, length.out = 5),
+                         name = "% of total", expand = c(0, 0)) +
+      scale_x_discrete(name = "",
+                       limits = rev,
+                       label = rev(Q_df$Short_wording))  +
+      scale_fill_manual(values = c(paste0("grey", seq(95, 45, -10)), sig_colour)) +
+      coord_flip() +
       theme_classic() +
       theme(legend.position = "none",
-            plot.title = element_markdown(),
-            plot.subtitle = element_markdown(),
-            plot.caption = element_markdown(),
+            plot.title = element_markdown(family = "Montserrat700", lineheight = 1.2),
+            plot.subtitle = element_markdown(family = "Montserrat600"),
+            plot.caption = element_markdown(family = "Montserrat300"),
+            plot.margin = margin(r = 10, l = 10),
+            # legend.position = "top",
+            # legend.direction = "horizontal",
+            # legend.justification = "left",
+            # legend.text = element_text(family = "Montserrat500"),
             axis.line.y = element_blank(),
             axis.ticks.y = element_blank(),
-            axis.text.y = element_blank(),
-            axis.title.y = element_blank(),
+            axis.text.y = element_markdown(family = "Montserrat500"),
             axis.line.x = element_line(colour = nonemph_colour),
-            axis.ticks.x = element_blank(),
-            axis.text.x = element_blank(),
-            axis.title.x = element_blank())}
+            axis.ticks.x = element_line(colour = nonemph_colour),
+            axis.text.x = element_text(colour = nonemph_colour,
+                                        family = "Montserrat300"),
+            axis.title.x = element_text(hjust = 0, colour = nonemph_colour,
+                                        family = "Montserrat300"))}
 
-ggplot2::ggsave(file = here::here("./plot/Gender_effects.png"), height = 7, width = 14, dpi = 600)
+ggsave(here::here("./plot/Likert_plot.png"), plot = plot,
+       device = ragg::agg_png, dpi = 300, height = 150, width = 250, units = "mm")
 
-```
-
-### Plot 1c: gt table to link 'Q1' to actual question wording
-
-Create data frame of questions
-
-```{r}
-
-Q_df <- data.frame(Qnumber = paste0("Q", 1:5),
-                   Wording = c("Microplastic pollution is a major problem that needs to be addressed",
-                               "We as humans are able to act against microplastic pollution",
-                               "I have a personal responsibility to change my behaviour to avoid microplastic pollution",
-                               "Politicians have a responsibility to implement legislation to avoid microplastic pollution",
-                               "Climate change is the most important problem facing our society"))
-
-(Q_df %>% 
-    gt() %>%  
-    #Rename columns
-    cols_label(Qnumber = "",
-               Wording = "") %>% 
-    #Add a table title
-    #Notice the `md` function allows us to write the title using markdown syntax (which allows HTML)
-    tab_header(title = md("Survey questions")) %>% 
-    #Add a data source footnote
-    tab_source_note(source_note = "Data: Ocean.Now! 'In Your Face' survey") %>% 
-    #Apply new style to all column headers
-    tab_style(
-      locations = cells_column_labels(columns = everything()),
-      style     = list(
-        #Give a thick border below
-        cell_borders(sides = "bottom", weight = px(3)),
-        #Make text bold
-        cell_text(weight = "bold")
-      )
-    ) %>% 
-    #Apply different style to the title
-    tab_style(
-      locations = cells_title(groups = "title"),
-      style     = list(
-        cell_text(weight = "bold", size = 24)
-      )
-    ))
-
+knitr::include_graphics(here::here("./plot/Likert_plot.png"))
 
 ```
