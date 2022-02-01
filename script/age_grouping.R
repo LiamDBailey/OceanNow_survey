@@ -17,14 +17,14 @@ quantile(clean_data$Age, probs = seq(0,1,1/3)) # With 1/3 steps
 
 his <- ggplot(clean_data, aes(x = Age)) +
   geom_histogram()
-print(his)
+his
 
 den <- ggplot(clean_data, aes(x=Age)) + 
   geom_density() +
   geom_vline(aes(xintercept = quantile(Age)[2])) + # Add quartiles + median
   geom_vline(aes(xintercept = quantile(Age)[3])) +
   geom_vline(aes(xintercept = quantile(Age)[4]))
-print(den)
+den
 
 # Create the first age grouping
 clean_data <- clean_data %>% mutate(Age_group = case_when(
