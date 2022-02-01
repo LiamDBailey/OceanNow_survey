@@ -1368,31 +1368,31 @@ library(systemfonts)
 library(ragg)
 
 systemfonts::register_font(name = "Montserrat100",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Thin.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraLight.ttf")
+                           plain = here::here("./assets/Montserrat-Thin.ttf"),
+                           bold = here::here("./assets/Montserrat-ExtraLight.ttf"))
 systemfonts::register_font(name = "Montserrat200",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraLight.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Light.ttf")
+                           plain = here::here("./assets/Montserrat-ExtraLight.ttf"),
+                           bold = here::here("./assets/Montserrat-Light.ttf"))
 systemfonts::register_font(name = "Montserrat300",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Light.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Regular.ttf")
+                           plain = here::here("./assets/Montserrat-Light.ttf"),
+                           bold = here::here("./assets/Montserrat-Regular.ttf"))
 systemfonts::register_font(name = "Montserrat400",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Regular.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Medium.ttf")
+                           plain = here::here("./assets/Montserrat-Regular.ttf"),
+                           bold = here::here("./assets/Montserrat-Medium.ttf"))
 systemfonts::register_font(name = "Montserrat500",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Medium.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-SemiBold.ttf")
+                           plain = here::here("./assets/Montserrat-Medium.ttf"),
+                           bold = here::here("./assets/Montserrat-SemiBold.ttf"))
 systemfonts::register_font(name = "Montserrat600",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-SemiBold.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Bold.ttf")
+                           plain = here::here("./assets/Montserrat-SemiBold.ttf"),
+                           bold = here::here("./assets/Montserrat-Bold.ttf"))
 systemfonts::register_font(name = "Montserrat700",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Bold.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraBold.ttf")
+                           plain = here::here("./assets/Montserrat-Bold.ttf"),
+                           bold = here::here("./assets/Montserrat-ExtraBold.ttf"))
 systemfonts::register_font(name = "Montserrat800",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-ExtraBold.ttf",
-                           bold = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Black.ttf")
+                           plain = here::here("./assets/Montserrat-ExtraBold.ttf"),
+                           bold = here::here("./assets/Montserrat-Black.ttf"))
 systemfonts::register_font(name = "Montserrat900",
-                           plain = "C:\\Users\\remot\\AppData\\Local\\Microsoft\\Windows\\Fonts\\Montserrat-Black.ttf")
+                           plain = here::here("./assets/Montserrat-Black.ttf"))
 
 ```
 
@@ -1465,18 +1465,22 @@ nonemph_colour <- "grey50"
 
 #This data frame is used to create labels for plot.
 #Can either show question number, full question wording or shortened question wording
-Q_df <- data.frame(Qnumber = paste0("Q", 1:5),
+Q_df <- data.frame(Qnumber = paste0("Q", 1:7),
                    Wording = c("Microplastic pollution is a major problem that needs to be addressed",
                                "We as humans are able to act against microplastic pollution",
                                "I have a personal responsibility to change my behaviour to avoid microplastic pollution",
                                "Politicians have a responsibility to implement legislation to avoid microplastic pollution",
-                               "Climate change is the most important problem facing our society"),
+                               "Climate change is the most important problem facing our society",
+                               "I would be willing to pay 50% more for products that do not contain microplastics",
+                               "I would be willing to participate in collective actions to address microplastic pollution (e.g. demonstrations)"),
                    #Use glue so that we can add in standard font size for labels
                    Short_wording = c(glue::glue("<span style = 'font-size:{label_size}pt;'>Microplastic importance</span>", label_size = label_size),
                                      glue::glue("<span style = 'font-size:{label_size}pt;'>Humans can act on<br>microplastics</span>", label_size = label_size),
                                      glue::glue("<span style = 'font-size:{label_size}pt;'>Personal responsibility</span>", label_size = label_size),
                                      glue::glue("<span style = 'font-size:{label_size}pt;'>Politician responsibility</span>", label_size = label_size),
-                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Climate change<br>importance</span>", label_size = label_size)))
+                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Climate change<br>importance</span>", label_size = label_size),
+                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Willing to<br>pay more</span>", label_size = label_size),
+                                     glue::glue("<span style = 'font-size:{label_size}pt;'>Willing  to<br>join community action</span>", label_size = label_size)))
 
 
 #Create plot data for males only
@@ -1597,17 +1601,21 @@ knitr::include_graphics(here::here("./plot/Male_effect.png"))
 Plot type: Stacked horizontal barplot
 
 Key goals:
-- Show that Q1-5 were heavily biased towards 'strongly agree' (for appendix if asked about analysis choice)
+- Show that most questions (Q1-7) were heavily biased towards 'strongly agree' (for appendix if asked about analysis choice)
 
 #### Data prep
 
 ```{r}
 
 raw_data <- clean_data %>% 
-  dplyr::select(ID = X_id, Gender, Treatment, Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
-                Political_responsibility_LK, Climate_importance_LK) %>% 
-  tidyr::pivot_longer(cols = c(Microplastic_importance_LK, Viable_action_LK, Personal_responsibility_LK,
-                               Political_responsibility_LK, Climate_importance_LK)) %>% 
+  dplyr::select(ID = X_id, Gender, Treatment, Microplastic_importance_LK, Viable_action_LK,
+                Personal_responsibility_LK,
+                Political_responsibility_LK, Climate_importance_LK,
+                Willingness_price_LK, Willingness_community_LK) %>% 
+  tidyr::pivot_longer(cols = c(Microplastic_importance_LK, Viable_action_LK,
+                               Personal_responsibility_LK,
+                               Political_responsibility_LK, Climate_importance_LK,
+                               Willingness_price_LK, Willingness_community_LK)) %>% 
   group_by(ID) %>% 
   dplyr::mutate(QuestionNumber = paste0("Q", 1:n()))
 
@@ -1628,18 +1636,25 @@ nonemph_colour <- "grey50"
 
 percentage_stronglyagree <- raw_data %>% 
   group_by(QuestionNumber) %>% 
-  summarise(percentage = paste0(round((sum(value == 7)/n()) * 100), "%"))
+  summarise(perc_dbl = sum(value == 7)/n()) %>% 
+  mutate(perc_chr = paste0(round(perc_dbl*100), "%"))
 
-plot <- raw_data %>% 
+#Join in % values and order questions by those values
+plot_data <- raw_data %>% 
+  dplyr::left_join(percentage_stronglyagree, by = "QuestionNumber") %>% 
+  dplyr::mutate(QuestionNumber = forcats::fct_reorder(QuestionNumber, .x = perc_dbl, .desc = TRUE))
+
+plot <- plot_data %>% 
   {ggplot() +
       geom_bar(data = ., aes(x = QuestionNumber, fill = as.factor(value), y = ..count../sum(..count..)), colour = "black") +
       geom_text(data = percentage_stronglyagree,
-                aes(x = QuestionNumber, y = 0.015, label = percentage),
+                aes(x = QuestionNumber, y = 0.01, label = perc_chr),
                 family = "Montserrat400", colour = "grey95") +
-      labs(title = glue::glue("Majority of respondants answered <span style='color:{sig_colour}'>**strongly agree**</span>",
+      labs(title = glue::glue("Many respondants answered <span style='color:{sig_colour}'>**strongly agree**</span>",
                               sig_colour = sig_colour),
            subtitle = glue::glue("<span style='color:{sig_colour}'>**strongly agree**</span> | <span style='color:grey45'>**6**</span> | <span style='color:grey55'>**5**</span> | <span style='color:grey65'>**4**</span> | <span style='color:grey75'>**3**</span> | <span style='color:grey85'>**2**</span> | <span style='color:grey95'>**strongly disagree**</span>")) +
       scale_y_continuous(position = "right",
+                         breaks = seq(0, (nrow(.)/length(unique(.$QuestionNumber)))/nrow(.), length.out = 5),
                          labels = seq(0, 100, length.out = 5),
                          name = "% of total", expand = c(0, 0)) +
       scale_x_discrete(name = "",
@@ -1663,7 +1678,7 @@ plot <- raw_data %>%
             axis.line.x = element_line(colour = nonemph_colour),
             axis.ticks.x = element_line(colour = nonemph_colour),
             axis.text.x = element_text(colour = nonemph_colour,
-                                        family = "Montserrat300"),
+                                       family = "Montserrat300"),
             axis.title.x = element_text(hjust = 0, colour = nonemph_colour,
                                         family = "Montserrat300"))}
 
@@ -1673,3 +1688,4 @@ ggsave(here::here("./plot/Likert_plot.png"), plot = plot,
 knitr::include_graphics(here::here("./plot/Likert_plot.png"))
 
 ```
+
