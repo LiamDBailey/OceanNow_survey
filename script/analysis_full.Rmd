@@ -1396,6 +1396,21 @@ systemfonts::register_font(name = "Montserrat900",
 
 ```
 
+### Prepare standard font sizes and colours
+
+```{r}
+
+#Set standard font sizes that can be easily changed
+title_size <- 15
+subtitle_size <- 10
+caption_size <- 7
+label_size <- 8
+sig_colour <- '#33658a'
+emph_colour <- "grey25"
+nonemph_colour <- "grey50"
+
+```
+
 What are the key take-aways we want to present?
 
 ### Plot 1: Summary stats of survey group
@@ -1453,15 +1468,6 @@ raw_data <- clean_data %>%
 #### Plot 2a: Try males alone plot
 
 ```{r}
-
-#Set standard font sizes that can be easily changed
-title_size <- 15
-subtitle_size <- 10
-caption_size <- 7
-label_size <- 8
-sig_colour <- '#33658a'
-emph_colour <- "grey25"
-nonemph_colour <- "grey50"
 
 #This data frame is used to create labels for plot.
 #Can either show question number, full question wording or shortened question wording
@@ -1624,15 +1630,6 @@ raw_data <- clean_data %>%
 #### Create plot
 
 ```{r}
-
-#Set standard font sizes that can be easily changed
-title_size <- 15
-subtitle_size <- 10
-caption_size <- 7
-label_size <- 8
-sig_colour <- '#33658a'
-emph_colour <- "grey25"
-nonemph_colour <- "grey50"
 
 percentage_stronglyagree <- raw_data %>% 
   group_by(QuestionNumber) %>% 
